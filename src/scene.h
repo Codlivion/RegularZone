@@ -18,8 +18,8 @@ struct Screen
 
 struct World
 {
-	std::vector<int> map;
-	std::vector<Screen*> screens;
+	std::vector<int> map; //World Map
+	std::vector<Screen*> screens; //Each Existing Screen in the World
 
 	World();
 	void Load();

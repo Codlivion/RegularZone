@@ -24,11 +24,6 @@ void Drawer::DrawPolygon(std::vector<olc::vf2d> v, olc::Pixel c)
 {
     if (pge == nullptr || v.size() < 3) return;
 
-    /*
-    for (int i = 0; i < v.size(); i++)
-        pge->DrawLine(v[i].x, v[i].y, v[(i + 1) % v.size()].x, v[(i + 1) % v.size()].y, c);
-    */
-
     for (int i = 0; i < v.size(); i++)
         pge->DrawLineDecal({ v[i].x, v[i].y }, { v[(i + 1) % v.size()].x, v[(i + 1) % v.size()].y }, c);
 }

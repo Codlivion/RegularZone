@@ -1,10 +1,6 @@
 #include "model.h"
 
-
-ResizeModule::ResizeModule(WireFrame* t)
-{
-	target = t;
-}
+ResizeModule::ResizeModule(WireFrame* t) { target = t; }
 
 void ResizeModule::Initiate(float spd, float d, int r, bool act)
 {
@@ -142,18 +138,21 @@ WireFrame::WireFrame(Object* p, int v, float s)
 	UpdateModel(n);
 }
 
-void WireFrame::AddVertex(int i) //Only needed for player?
+WireFrame::~WireFrame()
+{
+	delete trace;
+}
+
+void WireFrame::AddVertex(int i)
 {
 	int n = std::min((int)originalModel.size() + i, 8);
 	UpdateModel(n);
-	if (parent->life != nullptr) parent->life->ModifyMax(n * 3);
 }
 
-void WireFrame::RemoveVertex(int i) //Only needed for player?
+void WireFrame::RemoveVertex(int i)
 {
 	int n = std::max((int)originalModel.size() - i, 3);
 	UpdateModel(n);
-	if (parent->life != nullptr) parent->life->ModifyMax(n * 3);
 }
 
 
@@ -167,7 +166,7 @@ void WireFrame::UpdateModel(int n)
 	if (trace != nullptr) trace->transformedModel.resize(n);
 	if (parent->shootModule != nullptr) {
 		for (auto& a : parent->shootModule->weapons) {
-			if (a->type < 5) {
+			if (a->upgradable) {
 				for (auto& w : a->pool) {
 					w->model->UpdateModel(n);
 				}
@@ -208,7 +207,7 @@ void EnergyModule::ModifyMax(int m)
 void EnergyModule::Restore(int n, float t)
 {
 	if (timer > 0.f) return;
-	value = std::max(value + n, maxValue);
+	value = std::min(value + n, maxValue);
 	timer = t;
 }
 
@@ -230,6 +229,19 @@ Object::Object(olc::vi2d o, int v, float s)
 {
 	origin = o;
 	model = new WireFrame(this, v, s);
+}
+
+Object::~Object()
+{
+	delete model;
+	delete head;
+	delete life;
+	delete energy;
+	delete item;
+	delete shootModule;
+	delete behavior;
+	delete resizer;
+	delete flashModule;
 }
 
 void Object::AddBehavior(Behavior* b)
@@ -300,7 +312,7 @@ void Object::Update(float elapsed)
 		}
 	}
 	else if (bodyType == PROJECTILE) {
-		if (origin.x < 0 || origin.x > 256 || origin.y < 0 || origin.y > 224) active = false;
+		if (origin.x < 0 || origin.x > SCREEN_W || origin.y < 0 || origin.y > SCREEN_H) active = false;
 	}
 }
 
@@ -340,16 +352,20 @@ Arsenal::Arsenal(WireFrame& model, WeaponType t, float rof, bool friendly)
 	case WP_POLY:
 		for (int i = 0; i < 5; i++) pool.push_back(UnitBuilder::BuildProjectile(friendly, model.originalModel.size()));
 		for (auto& w : pool) w->wpnPoly = true;
+		upgradable = true;
 		break;
 	case WP_SHIELD:
 		pool.push_back(UnitBuilder::BuildShield(friendly, 3, model.size + 4));
+		upgradable = true;
 		break;
 	case WP_BLOCK:
 		pool.push_back(UnitBuilder::BuildBlock(friendly, 3, model.size));
+		upgradable = true;
 		break;
 	case WP_MULTI:
 		for (int i = 0; i < 8; i++) pool.push_back(UnitBuilder::BuildProjectile(friendly, model.originalModel.size()));
-		consumption = 3;
+		consumption = 1;
+		upgradable = true;
 		break;
 	case WP_BALL:
 		pool.push_back(UnitBuilder::BuildBall());
@@ -373,7 +389,8 @@ Arsenal::Arsenal(WireFrame& model, WeaponType t, float rof, bool friendly)
 		break;
 	case WP_DISCHARGE:
 		pool.push_back(UnitBuilder::BuildDischarge(friendly, model.originalModel.size(), model.size));
-		consumption = 45;
+		upgradable = true;
+		consumption = 30;
 		break;
 	case WP_PROJECTILE:
 		pool.push_back(UnitBuilder::BuildProjectile(friendly, model.originalModel.size()));
@@ -381,6 +398,12 @@ Arsenal::Arsenal(WireFrame& model, WeaponType t, float rof, bool friendly)
 	default: break;
 	}
 	rateOfFire = rof;
+}
+
+Arsenal::~Arsenal()
+{
+	for (auto& w : pool) delete w;
+	pool.clear();
 }
 
 void Arsenal::Update(float elapsed)
@@ -393,6 +416,12 @@ ShootModule::ShootModule(Object* p)
 	parent = p;
 	unlocked[0] = true;
 	for (int i = 1; i < 8; i++) unlocked[i] = false;
+}
+
+ShootModule::~ShootModule()
+{
+	for (auto& w : weapons) delete w;
+	weapons.clear();
 }
 
 void ShootModule::AddArsenal(WeaponType type, float rof, bool friendly)
@@ -441,9 +470,8 @@ void ShootModule::Shoot(int w)
 	if (w < 0 || w >= weapons.size()) return;
 
 	Arsenal* arsenal = weapons[w];
-	WeaponType t = arsenal->type;
 
-	switch (t)
+	switch (arsenal->type)
 	{
 	case WP_SHIELD:
 	{
@@ -471,7 +499,7 @@ void ShootModule::Shoot(int w)
 					arsenal->shootTimer = arsenal->rateOfFire;
 					arsenal->pool[i]->origin = parent->model->transformedModel[0];
 					arsenal->pool[i]->angle = parent->angle;
-					float spd = t == WP_POLY ? 80.f : 40.f;
+					float spd = arsenal->type == WP_POLY ? 80.f : 40.f;
 					arsenal->pool[i]->velocity = (parent->model->transformedModel[0] - parent->origin) * spd;
 					arsenal->pool[i]->added = true;
 					break;
@@ -491,9 +519,9 @@ void ShootModule::Shoot(int w)
 				}
 			}
 			if (available.size() >= parent->model->originalModel.size()) {
+				parent->energy->Consume(arsenal->consumption, 0.f);
 				arsenal->shootTimer = arsenal->rateOfFire;
 				for (int i = 0; i < available.size(); i++) {
-					parent->energy->Consume(arsenal->consumption, 0.f);
 					available[i]->origin = parent->model->transformedModel[i];
 					available[i]->angle = parent->angle + 2 * PI * i / available.size();
 					available[i]->velocity = (parent->model->transformedModel[i] - parent->origin) * 80.f;
@@ -824,8 +852,8 @@ Object* UnitBuilder::BuildPlayer(Object* existing)
 		unit->head->color = olc::BLUE;
 		unit->isPlayer = true;
 
-		unit->life = new EnergyModule(unit->model->originalModel.size() * 3);
-		unit->energy = new EnergyModule(unit->model->originalModel.size() * 30);
+		unit->life = new EnergyModule(unit->model->originalModel.size() * 5);
+		unit->energy = new EnergyModule(unit->model->originalModel.size() * 15);
 		unit->flashModule = new FlashModule(&unit->model->color, olc::RED);
 		unit->modules.push_back(unit->flashModule);
 		unit->model->trace = new FrameTrace(unit->model);
@@ -848,8 +876,9 @@ Object* UnitBuilder::BuildPlayer(Object* existing)
 		unit->origin = olc::vf2d(128.f, 112.f);
 		unit->velocity = olc::vf2d(0.f, 0.f);
 		unit->angle = -PI / 2;
-		unit->life->ModifyMax(unit->model->originalModel.size() * 3);
-		unit->energy->ModifyMax(unit->model->originalModel.size() * 30);
+		unit->life->value = unit->life->maxValue;
+		unit->energy->value = unit->energy->maxValue;
+		unit->shootModule->weapons[0]->pool[0]->life->value = 0;
 	}
 	unit->active = true;
 	return unit;
@@ -872,7 +901,7 @@ Object* UnitBuilder::BuildEnemy(olc::vd2d p, int type, Object* existing)
 		unit->model->color = olc::RED;
 		unit->head->color = olc::MAGENTA;
 
-		unit->life = new EnergyModule(v - 2);
+		unit->life = new EnergyModule(1);
 		unit->flashModule = new FlashModule(&unit->model->color, olc::WHITE);
 		unit->modules.push_back(unit->flashModule);
 		unit->shootModule = new ShootModule(unit);
@@ -882,30 +911,37 @@ Object* UnitBuilder::BuildEnemy(olc::vd2d p, int type, Object* existing)
 	else {
 		unit = existing;
 		unit->origin = p;
+		unit->velocity = olc::vf2d(0, 0);
+		unit->angle = -PI / 2;
 		unit->model->size = size;
 		unit->model->UpdateModel(v);
 		unit->head->size = size / 2;
 		unit->head->UpdateModel(v);
-		unit->life->ModifyMax(v - 2);
 
 		switch (type)
 		{
 		case 1: unit->AddBehavior(new GooBehavior(unit));
-
+			unit->life->ModifyMax(2);
 			break;
 		case 2: unit->AddBehavior(new StalkerBehavior(unit));
+			unit->life->ModifyMax(4);
 			break;
 		case 3: unit->AddBehavior(new SniperBehavior(unit));
+			unit->life->ModifyMax(8);
 			break;
 		case 4: unit->AddBehavior(new SliderBehavior(unit));
 			unit->behavior->Init(0);
+			unit->life->ModifyMax(12);
 			break;
 		case 5: unit->AddBehavior(new SliderBehavior(unit));
 			unit->behavior->Init(1);
+			unit->life->ModifyMax(12);
 			break;
 		case 6: unit->AddBehavior(new TurretBehavior(unit));
+			unit->life->ModifyMax(16);
 			break;
 		case 7: unit->AddBehavior(new RoamerBehavior(unit));
+			unit->life->ModifyMax(16);
 			break;
 		default:
 			break;
@@ -916,7 +952,6 @@ Object* UnitBuilder::BuildEnemy(olc::vd2d p, int type, Object* existing)
 
 Object* UnitBuilder::BuildItem(olc::vd2d p, int c, Object* existing)
 {
-	//Object* unit = existing != nullptr ? existing : new Object(p, 4, 8);
 	Object* unit;
 	if (existing == nullptr) {
 		unit = new Object(p, 4, 8);
@@ -957,7 +992,7 @@ Weapon* UnitBuilder::BuildBall()
 	unit->bodyType = BodyType::PROJECTILE;
 	unit->model->drawType = DrawType::FILLED;
 	unit->model->color = olc::DARK_CYAN;
-	unit->damage = 6;
+	unit->damage = 4;
 	unit->active = false;
 	return unit;
 }
@@ -985,7 +1020,7 @@ Weapon* UnitBuilder::BuildBomb()
 	unit->resizer = new ResizeModule(unit->model);
 	unit->modules.push_back(unit->resizer);
 	unit->behavior = new BombBehavior(unit);
-	unit->damage = 10;
+	unit->damage = 8;
 	unit->solid = false;
 	unit->continuous = true;
 	unit->active = false;
@@ -1057,7 +1092,7 @@ Weapon* UnitBuilder::BuildDischarge(bool friendly, int v, int size)
 	unit->model->color = friendly ? olc::WHITE : olc::RED;
 	unit->resizer = new ResizeModule(unit->model);
 	unit->modules.push_back(unit->resizer);
-	unit->damage = v * 10;
+	unit->damage = 16;
 	unit->solid = false;
 	unit->continuous = true;
 	unit->active = false;

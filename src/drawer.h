@@ -19,7 +19,6 @@ public:
 
 private:
     Drawer();
-    //~Drawer();
 
 public:
     void init(olc::PixelGameEngine* pge);

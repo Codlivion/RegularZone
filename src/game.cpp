@@ -8,7 +8,7 @@
 
 GLBL::GLBL() {}
 
-enum GameState { MAIN_MENU, OPTIONS, IN_GAME, STATUS, ENDING };
+enum GameState { MAIN_MENU, IN_GAME, STATUS, ENDING };
 
 class Game : public olc::PixelGameEngine
 {
@@ -24,11 +24,11 @@ public:
 	Screen* screen;
 	int originalTiles[GRID_SIZE];
 	int currentScreen = 119;
-	int checkPoint = 119;
 	float restartTimer = 2.f;
 	std::vector<Object*> enemyPool;
 	std::vector<Object*> itemPool;
 	std::string weaponString[8];
+	bool visited[16 * 16];
 	Object* endingBall = nullptr;
 
 	bool OnUserCreate() override
@@ -62,18 +62,13 @@ public:
 		screen->Initiate(enemyPool);
 		for (int i = 0; i < GRID_SIZE; i++) originalTiles[i] = screen->tiles[i];
 
+		for (auto& b : visited) b = false;
+		visited[currentScreen] = true;
 		endingBall = new Object(olc::vf2d(128, 112), 32, 32);
 		endingBall->model->TransformModel(endingBall->origin);
 
 		//All Weapons Cheat:
 		//for (auto& u : GLBL::get().player->shootModule->unlocked) u = true;
-		//GLBL::get().player->shootModule->unlocked[1] = true;
-		//GLBL::get().player->shootModule->unlocked[2] = true;
-		//GLBL::get().player->shootModule->unlocked[3] = true;
-		//GLBL::get().player->shootModule->unlocked[4] = true;
-		//GLBL::get().player->shootModule->unlocked[5] = true;
-		//GLBL::get().player->shootModule->unlocked[6] = true;
-		//GLBL::get().player->shootModule->unlocked[7] = true;
 
 		return true;
 	}
@@ -94,12 +89,6 @@ public:
 
 			break;
 		}
-		case OPTIONS:
-		{
-			//if input binding : else remove options
-
-			break;
-		}
 		case IN_GAME:
 		{
 			if (GLBL::get().screenTransition != 0) {
@@ -110,6 +99,7 @@ public:
 					screen = world->screens[world->map[currentScreen]];
 					screen->Initiate(enemyPool);
 					for (int i = 0; i < GRID_SIZE; i++) originalTiles[i] = screen->tiles[i];
+					visited[currentScreen] = true;
 				}
 				GLBL::get().screenTransition = 0;
 			}
@@ -230,12 +220,12 @@ public:
 									if (PhysicsEngine::ShapeOverlap_DIAGS(*units[i]->model, *units[j]->model)) {
 										//Shield<->Body Collision: (Initiate Flash)
 										if (units[i]->bodyType == BODY) {
-											if (!units[i]->life->Consume(units[j]->Damage(), 0.5f)) units[i]->active = false;
-											if (!units[j]->life->Consume(units[i]->Damage(), 0.5f)) units[j]->active = false;
+											if (!units[i]->life->Consume(1, 0.2f)) units[i]->active = false;
+											if (!units[j]->life->Consume(1, 0.2f)) units[j]->active = false;
 										}
 										else {
-											if (!units[j]->life->Consume(units[i]->Damage(), 0.5f)) units[j]->active = false;
-											if (!units[i]->life->Consume(units[j]->Damage(), 0.5f)) units[i]->active = false;
+											if (!units[j]->life->Consume(1, 0.2f)) units[j]->active = false;
+											if (!units[i]->life->Consume(1, 0.2f)) units[i]->active = false;
 										}
 									}
 								}
@@ -264,12 +254,15 @@ public:
 										}
 										switch (itemCode) {
 										case 1: unit->model->AddVertex(1);
-											checkPoint = currentScreen;
+											player->life->ModifyMax(player->model->originalModel.size() * 5);
+											player->energy->ModifyMax(player->model->originalModel.size() * 15);
+											for (auto& w : player->shootModule->weapons[2]->pool) w->damage++;
+											for (auto& w : player->shootModule->weapons[3]->pool) w->damage++;
 											screen->items[itemScreenIndex] = 0;
 											break;
 										case 2: unit->life->Restore(3, 0);
 											break;
-										case 3: unit->life->Restore(15, 0);
+										case 3: unit->life->Restore(9, 0);
 											break;
 										case 4: unit->energy->Restore(9, 0);
 											break;
@@ -318,11 +311,11 @@ public:
 									if (PhysicsEngine::ShapeOverlap_DIAGS(*units[i]->model, *units[j]->model)) {
 										//Projectile<->Shield Collision:
 										if (units[i]->bodyType == SHIELD) {
-											if (!units[i]->life->Consume(1, 0.5f)) units[i]->active = false;
+											if (!units[i]->life->Consume(1, 0.2f)) units[i]->active = false;
 											units[j]->Collided(true);
 										}
 										else {
-											if (!units[j]->life->Consume(1, 0.5f)) units[j]->active = false;
+											if (!units[j]->life->Consume(1, 0.2f)) units[j]->active = false;
 											units[i]->Collided(true);
 										}
 									}
@@ -357,7 +350,7 @@ public:
 				if (restartTimer <= 0.f) {
 					restartTimer = 2.f;
 					for (int i = 0; i < GRID_SIZE; i++) screen->tiles[i] = originalTiles[i];
-					currentScreen = checkPoint;
+					currentScreen = 119;
 					screen = world->screens[world->map[currentScreen]];
 					screen->Initiate(enemyPool);
 					for (int i = 0; i < GRID_SIZE; i++) originalTiles[i] = screen->tiles[i];
@@ -418,13 +411,15 @@ public:
 			for (int y = 0; y < 16; y++) {
 				for (int x = 0; x < 16; x++) {
 
-					if (world->map[y * 16 + x] > -1) FillRectDecal(olc::vi2d(64 + x * 8, 16 + y * 8), olc::vi2d(8, 8), olc::BLUE);
+					if (world->map[y * 16 + x] > -1) {
+						if (visited[y * 16 + x]) FillRectDecal(olc::vi2d(64 + x * 8, 16 + y * 8), olc::vi2d(8, 8), olc::BLUE);
+						else FillRectDecal(olc::vi2d(64 + x * 8, 16 + y * 8), olc::vi2d(8, 8), olc::DARK_BLUE);
+					}
 					DrawRectDecal(olc::vi2d(64 + x * 8, 16 + y * 8), olc::vi2d(8, 8), olc::BLACK);
 				}
 			}
 			olc::vi2d currentScreenPos = olc::vi2d(64 + (currentScreen % 16) * 8, 16 + (currentScreen / 16) * 8);
 			FillRectDecal(currentScreenPos, olc::vi2d(8, 8), olc::CYAN);
-			//Draw Target Screen/Screens?
 
 			DrawStringDecal(olc::vi2d( 32, 160), "HP:");
 			DrawStringDecal(olc::vi2d( 64, 160), std::to_string(player->life->value));
@@ -436,7 +431,7 @@ public:
 			DrawStringDecal(olc::vi2d(104, 176), std::to_string(player->shootModule->weapons[w]->pool[0]->damage));
 			DrawStringDecal(olc::vi2d(128, 176), "Consume:");
 			DrawStringDecal(olc::vi2d(200, 176), std::to_string(player->shootModule->weapons[w]->consumption));
-			FillRectDecal(olc::vf2d{ 32.f + (w % 4) * 48, 208.f + (w / 4) * 16 }, olc::vf2d(40, 12), olc::CYAN);
+			FillRectDecal(olc::vf2d{ 28.f + (w % 4) * 48, 204.f + (w / 4) * 16 }, olc::vf2d(40, 12), olc::BLUE);
 			for (int i = 0; i < 8; i++)
 				if (player->shootModule->unlocked[i])
 					DrawStringDecal(olc::vf2d{ 32.f + (i % 4) * 48, 208.f + (i / 4) * 16 }, weaponString[i]);
@@ -461,7 +456,7 @@ public:
 
 int main()
 {
-	::ShowWindow(::GetConsoleWindow(), SW_HIDE);
+	//::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 	Game game;
 	if (game.Construct(256, 256, 4, 4))
 		game.Start();

@@ -13,19 +13,16 @@ bool PhysicsEngine::ShapeOverlap_DIAGS(WireFrame& r1, WireFrame& r2)
 			poly2 = &r1;
 		}
 
-		// Check diagonals of polygon...
 		for (int p = 0; p < poly1->transformedModel.size(); p++)
 		{
 			olc::vf2d line_r1s = poly1->origin;
 			olc::vf2d line_r1e = poly1->transformedModel[p];
 
-			// ...against edges of the other
 			for (int q = 0; q < poly2->transformedModel.size(); q++)
 			{
 				olc::vf2d line_r2s = poly2->transformedModel[q];
 				olc::vf2d line_r2e = poly2->transformedModel[(q + 1) % poly2->transformedModel.size()];
 
-				// Standard "off the shelf" line segment intersection
 				float h = (line_r2e.x - line_r2s.x) * (line_r1s.y - line_r1e.y) - (line_r1s.x - line_r1e.x) * (line_r2e.y - line_r2s.y);
 				float t1 = ((line_r2s.y - line_r2e.y) * (line_r1s.x - line_r2s.x) + (line_r2e.x - line_r2s.x) * (line_r1s.y - line_r2s.y)) / h;
 				float t2 = ((line_r1s.y - line_r1e.y) * (line_r1s.x - line_r2s.x) + (line_r1e.x - line_r1s.x) * (line_r1s.y - line_r2s.y)) / h;
@@ -42,7 +39,6 @@ bool PhysicsEngine::ShapeOverlap_DIAGS(WireFrame& r1, WireFrame& r2)
 
 bool PhysicsEngine::ShapeOverlap_DIAGS_STATIC(WireFrame& r1, WireFrame& r2)
 {
-	//handle velocity properly when collision occurs! Bounce from tiles!
 	WireFrame* poly1 = &r1;
 	WireFrame* poly2 = &r2;
 
@@ -54,7 +50,6 @@ bool PhysicsEngine::ShapeOverlap_DIAGS_STATIC(WireFrame& r1, WireFrame& r2)
 			poly2 = &r1;
 		}
 
-		// Check diagonals of this polygon...
 		for (int p = 0; p < poly1->transformedModel.size(); p++)
 		{
 			olc::vf2d line_r1s = poly1->origin;
@@ -62,13 +57,11 @@ bool PhysicsEngine::ShapeOverlap_DIAGS_STATIC(WireFrame& r1, WireFrame& r2)
 
 			olc::vf2d displacement = { 0,0 };
 
-			// ...against edges of this polygon
 			for (int q = 0; q < poly2->transformedModel.size(); q++)
 			{
 				olc::vf2d line_r2s = poly2->transformedModel[q];
 				olc::vf2d line_r2e = poly2->transformedModel[(q + 1) % poly2->transformedModel.size()];
 
-				// Standard "off the shelf" line segment intersection
 				float h = (line_r2e.x - line_r2s.x) * (line_r1s.y - line_r1e.y) - (line_r1s.x - line_r1e.x) * (line_r2e.y - line_r2s.y);
 				float t1 = ((line_r2s.y - line_r2e.y) * (line_r1s.x - line_r2s.x) + (line_r2e.x - line_r2s.x) * (line_r1s.y - line_r2s.y)) / h;
 				float t2 = ((line_r1s.y - line_r1e.y) * (line_r1s.x - line_r2s.x) + (line_r1e.x - line_r1s.x) * (line_r1s.y - line_r2s.y)) / h;
@@ -84,16 +77,11 @@ bool PhysicsEngine::ShapeOverlap_DIAGS_STATIC(WireFrame& r1, WireFrame& r2)
 			r1.parent->origin.y += displacement.y * (shape == 0 ? -1 : +1);
 
 			olc::vf2d collisionVec = r1.origin - r2.origin;
-			if (r1.parent->friendly) {
-				r1.parent->velocity = -collisionVec * 16.f;
-			}
-			else {
-				r2.parent->velocity = collisionVec * 16.f;
-			}
+			if (r1.parent->friendly) r1.parent->velocity = -collisionVec * 16.f;
+			else r2.parent->velocity = collisionVec * 16.f;
 		}
 	}
 
-	// Cant overlap if static collision is resolved
 	return false;
 }
 
