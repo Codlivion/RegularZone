@@ -37,5 +37,5 @@ void Drawer::DrawPolygonFilled(std::vector<olc::vf2d> v, olc::Pixel c)
 
 void Drawer::DrawChar(olc::vf2d p, std::string c)
 {
-    pge->DrawStringDecal(p, c);
+    if (pge != nullptr) pge->DrawStringDecal(p, c);
 }

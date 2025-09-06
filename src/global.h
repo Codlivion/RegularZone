@@ -20,8 +20,8 @@ public:
     void operator=(GLBL const&) = delete;
 
     Object* player = nullptr;
-    std::vector<Object*> units; //Updated Units
-    std::vector<Object*> added; //Temporary Pointers (Not Owned)
+    std::vector<Object*> units;
+    std::vector<Object*> added;
     std::vector<int> itemVertices;
     std::vector<std::string> itemLetters;
     std::vector<olc::Pixel> itemColors;

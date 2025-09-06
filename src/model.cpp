@@ -364,6 +364,7 @@ Arsenal::Arsenal(WireFrame& model, WeaponType t, float rof, bool friendly)
 		break;
 	case WP_MULTI:
 		for (int i = 0; i < 8; i++) pool.push_back(UnitBuilder::BuildProjectile(friendly, model.originalModel.size()));
+		for (auto& w : pool) w->model->color = olc::YELLOW;
 		consumption = 1;
 		upgradable = true;
 		break;
@@ -476,7 +477,7 @@ void ShootModule::Shoot(int w)
 	case WP_SHIELD:
 	{
 		arsenal->pool[0]->added = true;
-		arsenal->pool[0]->life->value += 1;
+		arsenal->pool[0]->life->Restore(1, 0.1f);
 		break;
 	}
 	case WP_BLOCK:
@@ -620,7 +621,7 @@ void ShootModule::Shoot(int w)
 			arsenal->shootTimer = arsenal->rateOfFire;
 			arsenal->pool[0]->origin = parent->origin;
 			arsenal->pool[0]->angle = parent->angle;
-			parent->life->ModifyMax(100);
+			arsenal->pool[0]->life->ModifyMax(100);
 			arsenal->pool[0]->resizer->Initiate(800.f, 0.5f);
 			arsenal->pool[0]->added = true;
 		}
@@ -848,8 +849,8 @@ Object* UnitBuilder::BuildPlayer(Object* existing)
 
 		unit->bodyType = BodyType::BODY;
 		unit->model->drawType = DrawType::FILLED;
-		unit->model->color = olc::WHITE;
-		unit->head->color = olc::BLUE;
+		unit->model->color = olc::Pixel(128, 192, 255);
+		unit->head->color = olc::Pixel(32, 64, 128);
 		unit->isPlayer = true;
 
 		unit->life = new EnergyModule(unit->model->originalModel.size() * 5);
@@ -879,6 +880,7 @@ Object* UnitBuilder::BuildPlayer(Object* existing)
 		unit->life->value = unit->life->maxValue;
 		unit->energy->value = unit->energy->maxValue;
 		unit->shootModule->weapons[0]->pool[0]->life->value = 0;
+		unit->shootModule->weapons[0]->pool[0]->active = false;
 	}
 	unit->active = true;
 	return unit;
@@ -898,8 +900,8 @@ Object* UnitBuilder::BuildEnemy(olc::vd2d p, int type, Object* existing)
 		unit->bodyType = BodyType::BODY;
 		unit->friendly = false;
 		unit->model->drawType = DrawType::FILLED;
-		unit->model->color = olc::RED;
-		unit->head->color = olc::MAGENTA;
+		unit->model->color = olc::Pixel(255, 0, 0);
+		unit->head->color = olc::Pixel(128, 0, 0);
 
 		unit->life = new EnergyModule(1);
 		unit->flashModule = new FlashModule(&unit->model->color, olc::WHITE);
@@ -907,6 +909,7 @@ Object* UnitBuilder::BuildEnemy(olc::vd2d p, int type, Object* existing)
 		unit->shootModule = new ShootModule(unit);
 		unit->modules.push_back(unit->shootModule);
 		unit->shootModule->AddArsenal(WP_PROJECTILE, 0.25f, false);
+		unit->shootModule->weapons[0]->pool[0]->damage = 3;
 	}
 	else {
 		unit = existing;
@@ -917,6 +920,7 @@ Object* UnitBuilder::BuildEnemy(olc::vd2d p, int type, Object* existing)
 		unit->model->UpdateModel(v);
 		unit->head->size = size / 2;
 		unit->head->UpdateModel(v);
+		unit->shootModule->weapons[0]->pool[0]->active = false;
 
 		switch (type)
 		{
@@ -927,7 +931,7 @@ Object* UnitBuilder::BuildEnemy(olc::vd2d p, int type, Object* existing)
 			unit->life->ModifyMax(4);
 			break;
 		case 3: unit->AddBehavior(new SniperBehavior(unit));
-			unit->life->ModifyMax(8);
+			unit->life->ModifyMax(4);
 			break;
 		case 4: unit->AddBehavior(new SliderBehavior(unit));
 			unit->behavior->Init(0);
@@ -938,7 +942,7 @@ Object* UnitBuilder::BuildEnemy(olc::vd2d p, int type, Object* existing)
 			unit->life->ModifyMax(12);
 			break;
 		case 6: unit->AddBehavior(new TurretBehavior(unit));
-			unit->life->ModifyMax(16);
+			unit->life->ModifyMax(8);
 			break;
 		case 7: unit->AddBehavior(new RoamerBehavior(unit));
 			unit->life->ModifyMax(16);
@@ -980,8 +984,8 @@ Weapon* UnitBuilder::BuildProjectile(bool friendly, int level)
 	unit->bodyType = BodyType::PROJECTILE;
 	unit->friendly = friendly;
 	unit->model->drawType = DrawType::FILLED;
-	unit->model->color = friendly ? olc::WHITE : olc::RED;
-	unit->damage = level - 2;
+	unit->model->color = friendly ? olc::Pixel(32, 64, 128) : olc::RED;
+	unit->damage = 1;
 	unit->active = false;
 	return unit;
 }

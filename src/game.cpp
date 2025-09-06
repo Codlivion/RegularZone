@@ -39,7 +39,7 @@ public:
 		GLBL::get().itemLetters = { "", "V", "", "", "", "", "S", "R", "M", "C", "W", "B", "H", "L", "D", "U"};
 		GLBL::get().itemColors =
 		{
-			olc::YELLOW, olc::GREEN, olc::GREEN, olc::BLUE, olc::BLUE, olc::GREY, olc::GREY, olc::YELLOW,
+			olc::WHITE, olc::YELLOW, olc::GREEN, olc::GREEN, olc::BLUE, olc::BLUE, olc::GREY, olc::GREY, olc::YELLOW,
 			olc::DARK_CYAN, olc::DARK_MAGENTA, olc::DARK_YELLOW, olc::DARK_RED, olc::CYAN, olc::WHITE, olc::WHITE
 		};
 
@@ -79,6 +79,9 @@ public:
 		{
 		case MAIN_MENU:
 		{
+			for (int y = 1; y < 14; y++) DrawLineDecal(olc::vf2d(0, y * 16), olc::vf2d(SCREEN_W, y * 16), olc::Pixel(0, 8, 32));
+			for (int x = 1; x < 16; x++) DrawLineDecal(olc::vf2d(x * 16, 0), olc::vf2d(x * 16, SCREEN_H), olc::Pixel(0, 8, 32));
+
 			DrawStringDecal(olc::vi2d(32,  64), "REGULAR ZONE", olc::WHITE, olc::vf2d(2, 2));
 			DrawStringDecal(olc::vi2d(32, 144), "Press Enter to Start Game");
 			DrawStringDecal(olc::vi2d(32, 224), "Developed by Codlivion");
@@ -141,6 +144,29 @@ public:
 				if (GetKey(olc::ENTER).bPressed) gameState = STATUS;
 			}
 
+			FillRectDecal(olc::vi2d(0, 0), olc::vi2d(SCREEN_W, SCREEN_H), olc::BLACK);
+
+			std::vector<olc::vf2d> symbol;
+			olc::vi2d o;
+			for (int i = 0; i < GRID_SIZE; i++) {
+				if (screen->tiles[i] == 0) continue;
+				if (screen->tiles[i] == 1) {
+					FillRectDecal(olc::vi2d{ (i % 16) * 16, (i / 16) * 16 }, olc::vi2d{ 16, 16 }, olc::Pixel(0, 16, 64));
+					//DrawRectDecal(olc::vi2d{ (i % 16) * 16 + 4, (i / 16) * 16 + 4 }, olc::vi2d{ 8, 8 }, olc::BLACK);
+				}
+				else {
+					FillRectDecal(olc::vi2d{ (i % 16) * 16, (i / 16) * 16 }, olc::vi2d{ 16, 16 }, olc::Pixel(0, 32, 128));
+					if (screen->tiles[i] >= 3) {
+						o = olc::vi2d{ (i % 16) * 16 + 8, (i / 16) * 16 + 8 };
+						Drawer::CreatePolygon(symbol, screen->tiles[i], o);
+						DrawPolygonDecal(nullptr, symbol, symbol, olc::Pixel(0, 64, 255));
+					}
+				}
+			}
+
+			for (int y = 1; y < 14; y++) DrawLineDecal(olc::vf2d(0, y * 16), olc::vf2d(SCREEN_W, y * 16), olc::Pixel(0, 8, 32));
+			for (int x = 1; x < 16; x++) DrawLineDecal(olc::vf2d(x * 16, 0), olc::vf2d(x * 16, SCREEN_H), olc::Pixel(0, 8, 32));
+
 			//Update and Draw Units:
 			for (auto& u : units) {
 				if (u->active) {
@@ -170,24 +196,24 @@ public:
 				if (units[i]->active) {
 					for (int j = i + 1; j < units.size(); j++) {
 						if (units[j]->active) {
-							int col = units[i]->bodyType * 10 + units[j]->bodyType; //SHIELD<->SHIELD Collision??
+							int col = units[i]->bodyType * 10 + units[j]->bodyType;
 							switch (col) {
 							case 00: {
 								if (units[i]->friendly != units[j]->friendly) {
-									if (PhysicsEngine::ShapeOverlap_DIAGS(*units[i]->model, *units[j]->model)) {
+									if (PhysicsEngine::ShapeOverlap_DIAGS_STATIC(*units[i]->model, *units[j]->model)) {
 										//Body<->Body Collision:
-										olc::vf2d collisionVec = units[i]->origin - units[j]->origin;
+										//olc::vf2d collisionVec = units[i]->origin - units[j]->origin;
 										if (units[i]->friendly) {
 											if (!units[i]->life->Consume(1, 0.5f)) units[i]->active = false;
 											else {
-												units[i]->velocity = collisionVec * 4.f;
+												//units[i]->velocity = collisionVec * 4.f;
 												units[i]->flashModule->Initiate(0.5f);
 											}
 										}
 										else {
 											if (!units[j]->life->Consume(1, 0.5f)) units[j]->active = false;
 											else {
-												units[j]->velocity = collisionVec * 4.f;
+												//units[j]->velocity = collisionVec * 4.f;
 												units[j]->flashModule->Initiate(0.5f);
 											}
 										}
@@ -220,11 +246,11 @@ public:
 									if (PhysicsEngine::ShapeOverlap_DIAGS(*units[i]->model, *units[j]->model)) {
 										//Shield<->Body Collision: (Initiate Flash)
 										if (units[i]->bodyType == BODY) {
-											if (!units[i]->life->Consume(1, 0.2f)) units[i]->active = false;
+											if (!units[i]->life->Consume(units[j]->Damage(), 0.2f)) units[i]->active = false;
 											if (!units[j]->life->Consume(1, 0.2f)) units[j]->active = false;
 										}
 										else {
-											if (!units[j]->life->Consume(1, 0.2f)) units[j]->active = false;
+											if (!units[j]->life->Consume(units[i]->Damage(), 0.2f)) units[j]->active = false;
 											if (!units[i]->life->Consume(1, 0.2f)) units[i]->active = false;
 										}
 									}
@@ -260,11 +286,11 @@ public:
 											for (auto& w : player->shootModule->weapons[3]->pool) w->damage++;
 											screen->items[itemScreenIndex] = 0;
 											break;
-										case 2: unit->life->Restore(3, 0);
+										case 2: unit->life->Restore(5, 0);
 											break;
-										case 3: unit->life->Restore(9, 0);
+										case 3: unit->life->Restore(15, 0);
 											break;
-										case 4: unit->energy->Restore(9, 0);
+										case 4: unit->energy->Restore(15, 0);
 											break;
 										case 5: unit->energy->Restore(45, 0);
 											break;
@@ -337,11 +363,11 @@ public:
 			DrawStringDecal({ 72, 228 }, "SHD");
 			DrawStringDecal({ 72, 244 }, std::to_string(player->shootModule->weapons[0]->pool[0]->life->value));
 			DrawStringDecal({ 104, 228 }, "BLK");
-			DrawStringDecal({ 104, 244 }, std::to_string((int)(player->shootModule->weapons[1]->shootTimer * 100)));
+			DrawStringDecal({ 104, 244 }, std::to_string((int)(std::roundf(player->shootModule->weapons[1]->shootTimer * 100))));
 			DrawStringDecal({ 136, 228 }, "BST");
-			DrawStringDecal({ 136, 244 }, std::to_string((int)(player->model->trace->activeTimer * 100)));
+			DrawStringDecal({ 136, 244 }, std::to_string((int)(std::roundf(player->model->trace->activeTimer * 100))));
 			DrawStringDecal({ 168, 228 }, "ROF");
-			DrawStringDecal({ 168, 244 }, std::to_string((int)(player->shootModule->weapons[2]->rateOfFire * 100)));
+			DrawStringDecal({ 168, 244 }, std::to_string((int)(std::roundf(player->shootModule->weapons[2]->rateOfFire * 100))));
 			DrawStringDecal({ 200, 228 }, "WPN");
 			DrawStringDecal({ 200, 244 }, weaponString[player->shootModule->weaponIndex]);
 
@@ -355,6 +381,8 @@ public:
 					screen->Initiate(enemyPool);
 					for (int i = 0; i < GRID_SIZE; i++) originalTiles[i] = screen->tiles[i];
 					UnitBuilder::BuildPlayer(player);
+					player->shootModule->weapons[0]->pool[0]->life->value = 0;
+					player->shootModule->weapons[0]->pool[0]->active = false;
 					return true;
 				}
 			}
@@ -363,21 +391,6 @@ public:
 			if (added.size() > 0) {
 				units.insert(units.end(), added.begin(), added.end());
 				added.clear();
-			}
-
-			std::vector<olc::vf2d> symbol;
-			olc::vi2d o;
-			for (int i = 0; i < GRID_SIZE; i++) {
-				if (screen->tiles[i] == 0) continue;
-				if (screen->tiles[i] == 1) FillRectDecal(olc::vi2d{ (i % 16) * 16, (i / 16) * 16 }, olc::vi2d{ 16, 16 }, olc::VERY_DARK_GREY);
-				else {
-					FillRectDecal(olc::vi2d{ (i % 16) * 16, (i / 16) * 16 }, olc::vi2d{ 16, 16 }, olc::GREY);
-					if (screen->tiles[i] >= 3) {
-						o = olc::vi2d{ (i % 16) * 16 + 8, (i / 16) * 16 + 8 };
-						Drawer::CreatePolygon(symbol, screen->tiles[i], o);
-						DrawPolygonDecal(nullptr, symbol, symbol, olc::BLUE);
-					}
-				}
 			}
 
 			break;
@@ -407,6 +420,9 @@ public:
 				}
 				player->shootModule->weaponIndex = w;
 			}
+
+			//for (int y = 1; y < 14; y++) DrawLineDecal(olc::vf2d(0, y * 16), olc::vf2d(SCREEN_W, y * 16), olc::Pixel(0, 8, 32));
+			//for (int x = 1; x < 16; x++) DrawLineDecal(olc::vf2d(x * 16, 0), olc::vf2d(x * 16, SCREEN_H), olc::Pixel(0, 8, 32));
 
 			for (int y = 0; y < 16; y++) {
 				for (int x = 0; x < 16; x++) {

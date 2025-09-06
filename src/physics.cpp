@@ -70,15 +70,17 @@ bool PhysicsEngine::ShapeOverlap_DIAGS_STATIC(WireFrame& r1, WireFrame& r2)
 				{
 					displacement.x += (1.0f - t1) * (line_r1e.x - line_r1s.x);
 					displacement.y += (1.0f - t1) * (line_r1e.y - line_r1s.y);
+
+					r1.parent->origin.x += displacement.x * (shape == 0 ? -1 : +1);
+					r1.parent->origin.y += displacement.y * (shape == 0 ? -1 : +1);
+
+					olc::vf2d collisionVec = r1.origin - r2.origin;
+					if (r1.parent->friendly) r1.parent->velocity = collisionVec * 8.f;
+					else r2.parent->velocity = -collisionVec * 8.f;
+
+					return true;
 				}
 			}
-
-			r1.parent->origin.x += displacement.x * (shape == 0 ? -1 : +1);
-			r1.parent->origin.y += displacement.y * (shape == 0 ? -1 : +1);
-
-			olc::vf2d collisionVec = r1.origin - r2.origin;
-			if (r1.parent->friendly) r1.parent->velocity = -collisionVec * 16.f;
-			else r2.parent->velocity = collisionVec * 16.f;
 		}
 	}
 

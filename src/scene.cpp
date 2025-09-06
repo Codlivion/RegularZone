@@ -28,6 +28,8 @@ void Screen::Initiate(std::vector<Object*>& enemyPool)
 {
 	GLBL::get().units.clear();
 	GLBL::get().units.push_back(GLBL::get().player);
+	if (GLBL::get().player->shootModule->weapons[0]->pool[0]->life->value > 0)
+		GLBL::get().added.push_back(GLBL::get().player->shootModule->weapons[0]->pool[0]);
 	int poolIndex = 0;
 	for (int i = 0; i < GRID_SIZE; i++) {
 		if (enemies[i] > 0) {
