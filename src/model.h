@@ -19,6 +19,17 @@ struct Module
 	virtual void Update(float elapsed) = 0;
 };
 
+struct Particle
+{
+	olc::vf2d origin;
+	float radius = 0.1f;
+	float timer = 0.1f;
+
+	void Init(olc::vf2d o);
+	void Update(float elapsed);
+	void Draw();
+};
+
 struct ResizeModule : Module
 {
 	WireFrame* target = nullptr;

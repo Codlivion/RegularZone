@@ -20,6 +20,11 @@ void Drawer::CreatePolygon(std::vector<olc::vf2d>& v, int n, olc::vf2d o)
     };
 }
 
+void Drawer::DrawRect(olc::vf2d p, olc::vf2d s, olc::Pixel c)
+{
+    if (pge != nullptr) pge->FillRectDecal(p, s, c);
+}
+
 void Drawer::DrawPolygon(std::vector<olc::vf2d> v, olc::Pixel c)
 {
     if (pge == nullptr || v.size() < 3) return;

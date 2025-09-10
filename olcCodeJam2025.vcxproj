@@ -131,10 +131,14 @@
   <ItemGroup>
     <ClInclude Include="src\drawer.h" />
     <ClInclude Include="src\global.h" />
+    <ClInclude Include="src\input.h" />
+    <ClInclude Include="src\olcPGEX_Gamepad.h" />
+    <ClInclude Include="src\olcSoundWaveEngine.h" />
     <ClInclude Include="src\scene.h" />
     <ClInclude Include="src\model.h" />
     <ClInclude Include="src\olcPixelGameEngine.h" />
     <ClInclude Include="src\physics.h" />
+    <ClInclude Include="src\splashScreen.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\drawer.cpp" />
